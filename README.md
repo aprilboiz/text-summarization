@@ -34,3 +34,8 @@ This is a simple text summarization tool implemented from scratch using Python, 
     ```sh
     python summarizer.py [--top_n TOP_N] input_file
     ```
+
+2. **Through the Flask server**
+   ```sh
+    flask --app main.py --debug run
+    ```
