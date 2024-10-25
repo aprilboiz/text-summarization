@@ -1,23 +1,18 @@
 import spacy
 import re
 from collections import Counter
-import json
 import math
 import numpy as np
-from typing import List, Dict, Tuple, Optional
+from typing import List, Dict, Tuple
 from pathlib import Path
+import argparse
 
 
 class TextSummarizer:
-    def __init__(
-        self, model_name: str = "en_core_web_sm", cache_dir: Optional[Path] = None
-    ):
+    def __init__(self, model_name: str = "en_core_web_sm"):
         self.nlp = spacy.load(model_name)
-        self.cache_dir = cache_dir
-        if cache_dir:
-            Path(cache_dir).mkdir(parents=True, exist_ok=True)
 
-    def load_text(self, file_path: str) -> str:
+    def load_text(self, file_path: Path) -> str:
         try:
             with open(file_path, "r", encoding="utf-8") as f:
                 return f.read()
@@ -116,7 +111,6 @@ class TextSummarizer:
     def calculate_tf_idf(
         self, tf_matrix: Dict[str, Dict[str, float]], idf_matrix: Dict[str, float]
     ) -> Dict[str, Dict[str, float]]:
-        """Calculate TF-IDF with proper normalization."""
         tf_idf_matrix = {}
 
         for sent, tf_scores in tf_matrix.items():
@@ -179,12 +173,19 @@ class TextSummarizer:
 
         return " ".join(selected_sents)
 
-    def summarize(self, file_path: str, top_n: int = 5) -> str:
+    def summarize(self, input: str, top_n: int = 5) -> str:
         """Main summarization method with error handling and caching."""
         try:
             # Load and process text
-            text = self.load_text(file_path)
-            text = self.preprocess_text(text)
+            try:
+                file_path = Path(input)
+                if not file_path.is_file():
+                    raise FileNotFoundError(f"File not found: {file_path}")
+                input = self.load_text(file_path)
+            except FileNotFoundError:
+                pass
+
+            text = self.preprocess_text(input)
 
             # Clean sentences
             cleaned_sents, original_sentences = self.clean_sentences(text)
@@ -199,35 +200,29 @@ class TextSummarizer:
             idf_matrix = self.calculate_idf(cleaned_sents)
             tf_idf_matrix = self.calculate_tf_idf(tf_matrix, idf_matrix)
 
-            # Cache results if cache directory is set
-            if self.cache_dir:
-                self._cache_matrices(tf_matrix, idf_matrix, tf_idf_matrix)
-
             # Generate summary
-            summary = self.score_sentences(tf_idf_matrix, sent_mapping, top_n)
+            summary = self.score_sentences(
+                tf_idf_matrix, sent_mapping, int(0.3 * len(original_sentences))
+            )
             return summary
 
         except Exception as e:
             raise Exception(f"Summarization failed: {str(e)}")
 
-    def _cache_matrices(self, tf_matrix, idf_matrix, tf_idf_matrix):
-        """Cache calculated matrices."""
-        cache_files = {
-            "tf.json": tf_matrix,
-            "idf.json": idf_matrix,
-            "tf_idf.json": tf_idf_matrix,
-        }
-
-        for filename, data in cache_files.items():
-            cache_path = Path(self.cache_dir) / filename
-            with open(cache_path, "w") as f:
-                json.dump(data, f, indent=4)
-
 
 if __name__ == "__main__":
-    summarizer = TextSummarizer(cache_dir="cache")
+    parser = argparse.ArgumentParser(description="Text Summarization using TF-IDF")
+    parser.add_argument("input", type=str, help="Path to the input text file")
+    parser.add_argument(
+        "--top_n",
+        type=int,
+        default=5,
+        help="Number of top sentences to include in the summary",
+    )
+    args = parser.parse_args()
+    summarizer = TextSummarizer()
     try:
-        summary = summarizer.summarize("text2.txt", top_n=5)
+        summary = summarizer.summarize(args.input, top_n=args.top_n)
         print("Summary:", summary)
     except Exception as e:
         print(f"Error: {str(e)}")
