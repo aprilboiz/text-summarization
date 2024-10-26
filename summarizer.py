@@ -38,7 +38,6 @@ class TextSummarizer:
         return text
 
     def clean_sentences(self, text: str) -> Tuple[List[str], List[str]]:
-        """Improved sentence cleaning with better token filtering."""
         doc = self.nlp(text)
 
         # Original sentences for final output
@@ -86,7 +85,6 @@ class TextSummarizer:
         return tf_matrix
 
     def calculate_idf(self, sentences: List[str]) -> Dict[str, float]:
-        """Calculate IDF with improved document frequency handling."""
         total_docs = len(sentences)
         word_doc_count = Counter()
 
@@ -173,8 +171,7 @@ class TextSummarizer:
 
         return " ".join(selected_sents)
 
-    def summarize(self, input: str, top_n: int = 5) -> str:
-        """Main summarization method with error handling and caching."""
+    def summarize(self, input: str, top_n: int = 0) -> str:
         try:
             # Load and process text
             try:
@@ -200,10 +197,11 @@ class TextSummarizer:
             idf_matrix = self.calculate_idf(cleaned_sents)
             tf_idf_matrix = self.calculate_tf_idf(tf_matrix, idf_matrix)
 
+            if top_n <= 0:
+                top_n = min(5, int(0.2 * len(original_sentences)))
+
             # Generate summary
-            summary = self.score_sentences(
-                tf_idf_matrix, sent_mapping, int(0.3 * len(original_sentences))
-            )
+            summary = self.score_sentences(tf_idf_matrix, sent_mapping, top_n)
             return summary
 
         except Exception as e:

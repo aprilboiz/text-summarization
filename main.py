@@ -1,5 +1,10 @@
 from flask import Flask, jsonify, request
 from summarizer import TextSummarizer
+from youtube_transcript_api import YouTubeTranscriptApi
+from pytubefix import YouTube
+from pytubefix.exceptions import VideoUnavailable
+import re
+
 
 app = Flask(__name__)
 
@@ -9,6 +14,21 @@ class SummarizeType:
     VIDEO = "video"
 
 
+def extract_video_id(url: str):
+    video_id = re.search(r"watch\?v=(\w+)", url)
+    if video_id:
+        return video_id.group(1)
+    return None
+
+
+def is_youtube_url(url: str):
+    return re.match(r"https?://(www\.)?(youtube\.com|youtu\.be)/watch\?v=", url) is not None
+
+
+def construct_youtube_url(video_id: str):
+    return f"https://youtube.com/watch?v={video_id}"
+
+
 @app.route("/api/summarize", methods=["POST"])
 def summarize():
     summarizer = TextSummarizer()
@@ -16,10 +36,37 @@ def summarize():
         data = request.get_json()
         type = data.get("type", SummarizeType.TEXT)
         if type == SummarizeType.VIDEO:
-            return jsonify({"error": "Video summarization not supported yet"})
+            try:
+                video_id = data["video_id"]
+            except KeyError:
+                return jsonify({"error": "Missing 'video_id' field in request"}), 400
+            top_n = data.get("top_n", 5)
+
+            # Check if the video ID is a YouTube URL
+            if is_youtube_url(video_id):
+                video_id = extract_video_id(video_id)
+                if video_id is None:
+                    return jsonify({"error": "Invalid YouTube video URL"}), 400
+
+            # If not, assume it's a video ID, and construct the YouTube URL
+            video_url = construct_youtube_url(video_id)
+            video = YouTube(video_url)
+            try:
+                video.title
+            except VideoUnavailable:
+                return jsonify({"error": "Video is unavailable"}), 400
+
+            # Get the transcript
+            transcript = YouTubeTranscriptApi.get_transcript(video_id)
+            text = " ".join([t["text"] for t in transcript])
+            summary = summarizer.summarize(text, top_n)
+            return jsonify({"summary": summary})
 
         if type == SummarizeType.TEXT:
-            text = data["text"]
+            try:
+                text = data["text"]
+            except KeyError:
+                return jsonify({"error": "Missing 'text' field in request"}), 400
             top_n = data.get("top_n", 5)
             summary = summarizer.summarize(text, top_n)
             return jsonify({"summary": summary})
