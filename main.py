@@ -4,9 +4,10 @@ from youtube_transcript_api import YouTubeTranscriptApi
 from pytubefix import YouTube
 from pytubefix.exceptions import VideoUnavailable
 import re
-
+from flask_cors import CORS
 
 app = Flask(__name__)
+CORS(app, resources={r"/api/*": {"origins": "*"}})
 
 
 class SummarizeType:
