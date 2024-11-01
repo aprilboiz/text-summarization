@@ -19,8 +19,9 @@ class TextSummarizer:
         except Exception as e:
             raise FileNotFoundError(f"Error loading file {file_path}: {str(e)}")
 
-    def preprocess_text(self, text: str) -> str:
+    def preprocess_text(self, text: str) -> Tuple[str, str]:
         # Convert to lowercase and strip whitespace
+        original_text = text
         text = text.strip()
 
         # Remove URLs
@@ -35,14 +36,14 @@ class TextSummarizer:
         # Normalize sentence endings
         text = re.sub(r"([.!?])\s*([A-Za-z])", r"\1 \2", text)
 
-        return text
+        return text, original_text
 
     def clean_sentences(self, text: str) -> Tuple[List[str], List[str]]:
-        doc = self.nlp(text)
-
         # Original sentences for final output
-        original_sentences = [sent.text.strip() for sent in doc.sents]
+        original_sentences = [sent.text.strip() for sent in self.nlp(text).sents]
 
+        text, orginal_text = self.preprocess_text(text)
+        doc = self.nlp(text)
         # Clean and preprocess sentences
         cleaned_sentences = []
         for sent in doc.sents:
@@ -182,7 +183,9 @@ class TextSummarizer:
             except FileNotFoundError:
                 pass
 
-            text = self.preprocess_text(input)
+            text = input
+            if not text:
+                raise ValueError("Input text is empty")
 
             # Clean sentences
             cleaned_sents, original_sentences = self.clean_sentences(text)
