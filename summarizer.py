@@ -79,7 +79,7 @@ class TextSummarizer:
             # Calculate frequency with smoothing
             total_tokens = sum(token_counts.values())
             tf_matrix[sent] = {
-                token: (count + 1) / (total_tokens + len(token_counts))
+                token: (count + 1) / (total_tokens + 1)
                 for token, count in token_counts.items()
             }
 
