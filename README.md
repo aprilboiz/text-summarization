@@ -1,6 +1,6 @@
 # text-summarization
 
-This is a simple text summarization tool implemented from scratch using Python, powered by TF-IDF.
+This simple extractive text summarization tool is implemented from scratch using Python, powered by TF-IDF.
 
 ## Installation
 
@@ -29,13 +29,14 @@ This is a simple text summarization tool implemented from scratch using Python, 
     ```
 
 ## Usage
-
+There are 2 ways to run this application:
 1. **Run the summarization script**:
     ```sh
     python summarizer.py [--top_n TOP_N] input_file
     ```
 
-2. **Through the Flask server**
+2. **Through the Flask server**:
+This also provides an API to summarize a YouTube video using its subtitle (en-us only).
    ```sh
     flask --app main.py --debug run
     ```
