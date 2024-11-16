@@ -1,8 +1,12 @@
 from flask import Flask, jsonify, request
 from summarizer import TextSummarizer
 from youtube_transcript_api import YouTubeTranscriptApi
+from youtube_transcript_api._errors import (
+    TranscriptsDisabled,
+    NoTranscriptFound,
+    VideoUnavailable,
+)
 from pytubefix import YouTube
-from pytubefix.exceptions import VideoUnavailable
 import re
 from flask_cors import CORS
 
@@ -23,7 +27,10 @@ def extract_video_id(url: str):
 
 
 def is_youtube_url(url: str):
-    return re.match(r"https?://(www\.)?(youtube\.com|youtu\.be)/watch\?v=", url) is not None
+    return (
+        re.match(r"https?://(www\.)?(youtube\.com|youtu\.be)/watch\?v=", url)
+        is not None
+    )
 
 
 def construct_youtube_url(video_id: str):
@@ -58,10 +65,20 @@ def summarize():
                 return jsonify({"error": "Video is unavailable"}), 400
 
             # Get the transcript
-            transcript = YouTubeTranscriptApi.get_transcript(video_id)
-            text = " ".join([t["text"] for t in transcript])
-            summary = summarizer.summarize(text, top_n)
-            return jsonify({"summary": summary})
+            try:
+                transcript = YouTubeTranscriptApi.get_transcript(
+                    video_id, languages=["en"]
+                )
+                text = " ".join([t["text"] for t in transcript])
+                summary = summarizer.summarize(text, top_n)
+                return jsonify({"summary": summary})
+            except TranscriptsDisabled:
+                return (
+                    jsonify({"error": "Transcripts are disabled for this video"}),
+                    400,
+                )
+            except NoTranscriptFound:
+                return jsonify({"error": "No transcript found for this video"}), 400
 
         if type == SummarizeType.TEXT:
             try:
